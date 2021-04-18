@@ -1,12 +1,12 @@
-import domain.GithubJob
+import data.RemoteDataSourceImpl
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.features.json.*
 import io.ktor.client.features.json.serializer.*
 import io.ktor.client.features.logging.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
+import kotlinx.coroutines.*
 import utils.Constants
+import utils.Timer
 
 suspend fun main() {
     val client = HttpClient(CIO) {
@@ -21,7 +21,13 @@ suspend fun main() {
             level = LogLevel.HEADERS
         }
     }
-    val response = client.get<List<GithubJob>>("${Constants.URL_BASE}?search=kotlin")
-    println(response.take(10).map { it.company })
+    Timer.setInterval(Constants.FETCH_INTERVAL) {
+        println("Doing Fetch data ...")
+        CoroutineScope(Dispatchers.IO).launch {
+            val data = async { RemoteDataSourceImpl().getJobsBySearch(client,"kotlin",4) }
+            val result = data.await()
+            println(result.map { it.company })
+        }
+    }
     client.close()
 }
